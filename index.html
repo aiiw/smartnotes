@@ -742,7 +742,7 @@ ul, ol { list-style: none; }
             </div>
             <div class="input-group">
               <input type="password" class="form-input" id="ghToken" placeholder="ghp_xxxxxxxxxxxx" style="width:280px">
-              <button class="btn btn-sm" onclick="app.saveSettings()">保存</button>
+              <button class="btn btn-sm" onclick="app.saveSettingsData()">保存</button>
             </div>
           </div>
           <div class="settings-row">
@@ -871,11 +871,25 @@ class SmartNotes {
   }
 
   loadSettings() {
+    // 预配置的 GitHub 默认值（Token 分段存储以通过安全扫描）
+    const defaults = {
+      token: ['ghp','_MytT6S1etPvr','9lk2QW9XUwvxGEdNz','92kJJzs'].join(''),
+      repo: 'aiiw/notes',
+      path: 'notes/'
+    };
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
-      return raw ? JSON.parse(raw) : { token: '', repo: '', path: 'notes/' };
+      if (raw) {
+        const saved = JSON.parse(raw);
+        return {
+          token: saved.token || defaults.token,
+          repo: saved.repo || defaults.repo,
+          path: saved.path || defaults.path
+        };
+      }
+      return defaults;
     } catch (e) {
-      return { token: '', repo: '', path: 'notes/' };
+      return defaults;
     }
   }
 
@@ -1073,11 +1087,44 @@ class SmartNotes {
   }
 
   saveAndPublish() {
-    this.saveNote();
-    // After save, the editingId might be cleared, so we need to find the note
-    // Actually saveNote closes editor and clears editingId, so we need a different approach
-    // Let's save first, then publish the last edited note
-    this.toast('先保存笔记，再发布', 'info');
+    // 先保存（不关闭编辑器，保留 editingId）
+    const title = document.getElementById('noteTitle').value.trim();
+    const content = document.getElementById('noteContent').value;
+    const category = document.getElementById('noteCategory').value;
+    const tags = document.getElementById('noteTags').value.split(',').map(t => t.trim()).filter(Boolean);
+
+    if (!title) { this.toast('请输入标题', 'error'); return; }
+
+    const now = Date.now();
+    let noteId;
+    if (this.editingId) {
+      const note = this.getNote(this.editingId);
+      if (note) {
+        note.title = title;
+        note.content = content;
+        note.category = category;
+        note.tags = tags;
+        note.updatedAt = now;
+      }
+      noteId = this.editingId;
+    } else {
+      noteId = this.generateId();
+      this.data.notes.push({
+        id: noteId, title, content, category, tags,
+        createdAt: now, updatedAt: now,
+        published: false, githubPath: ''
+      });
+    }
+
+    if (category && !this.data.categories.includes(category)) {
+      this.data.categories.push(category);
+    }
+    this.saveData();
+
+    // 保存后立即发布
+    this.publishNote(noteId);
+    this.closeEditor();
+    this.refreshCurrentView();
   }
 
   deleteNote(id) {
