@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<meta name="description" content="SmartNotes - 个人笔记管理平台，支持 Markdown 编辑、分类管理、一键发布到 GitHub">
+<meta name="theme-color" content="#1a1a2e">
+<title>SmartNotes - 笔记管理平台</title>
+<style>
+/* ========== CSS Variables ========== */
+:root {
+  --font-sans: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
+  --font-mono: 'Cascadia Code', 'Fira Code', 'Consolas', 'Monaco', monospace;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 12px;
+  --transition: 0.2s ease;
+}
+
+:root[data-theme="light"] {
+  --bg: #f5f6fa;
+  --bg-card: #ffffff;
+  --bg-sidebar: #f0f2f5;
+  --bg-hover: #e8eaed;
+  --bg-input: #f5f6fa;
+  --bg-code: #f0f2f5;
+  --bg-modal: rgba(0,0,0,0.4);
+  --text: #2c3e50;
+  --text-secondary: #5a6a7e;
+  --text-muted: #94a3b8;
+  --border: #e2e8f0;
+  --border-focus: #667eea;
+  --accent: #667eea;
+  --accent-hover: #5a6fd6;
+  --accent-light: rgba(102,126,234,0.1);
+  --danger: #e74c3c;
+  --danger-hover: #c0392b;
+  --success: #27ae60;
+  --success-light: rgba(39,174,96,0.1);
+  --warning: #f39c12;
+  --warning-light: rgba(243,156,18,0.1);
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+:root[data-theme="dark"] {
+  --bg: #1a1a2e;
+  --bg-card: #16213e;
+  --bg-sidebar: #0f3460;
+  --bg-hover: #1a3a6e;
+  --bg-input: #1a2744;
+  --bg-code: #1a1a2e;
+  --bg-modal: rgba(0,0,0,0.6);
+  --text: #e0e6ed;
+  --text-secondary: #a0b4c8;
+  --text-muted: #64748b;
+  --border: #2a3a5c;
+  --border-focus: #667eea;
+  --accent: #667eea;
+  --accent-hover: #7b8ff0;
+  --accent-light: rgba(102,126,234,0.15);
+  --danger: #e74c3c;
+  --danger-hover: #f06050;
+  --success: #2ecc71;
+  --success-light: rgba(46,204,113,0.12);
+  --warning: #f39c12;
+  --warning-light: rgba(243,156,18,0.12);
+  --shadow: 0 1px 3px rgba(0,0,0,0.2);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+/* ========== Reset & Base ========== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button { cursor: pointer; font-family: inherit; }
+input, textarea, select { font-family: inherit; }
+ul, ol { list-style: none; }
+
+/* ========== Layout ========== */
+.app { display: flex; min-height: 100vh; }
+
+/* ========== Sidebar ========== */
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 100;
+  transition: transform var(--transition);
+}
+.sidebar-header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-header h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sidebar-header h1 .icon { font-size: 24px; }
+.sidebar-header .subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+.nav-section { padding: 0 12px; margin-bottom: 4px; }
+.nav-section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  padding: 8px 12px 4px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all var(--transition);
+  margin-bottom: 2px;
+}
+.nav-item:hover { background: var(--bg-hover); color: var(--text); }
+.nav-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.nav-item .badge {
+  margin-left: auto;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}
+.sidebar-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sidebar-footer .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+
+/* ========== Main Content ========== */
+.main {
+  flex: 1;
+  margin-left: 260px;
+  padding: 32px 40px;
+  min-height: 100vh;
+  max-width: calc(100vw - 260px);
+}
+.page { display: none; }
+.page.active { display: block; }
+
+/* ========== Page Header ========== */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.page-header h2 { font-size: 24px; font-weight: 700; }
+.page-header .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ========== Buttons ========== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-hover); color: #fff; }
+.btn-danger { color: var(--danger); }
+.btn-danger:hover { border-color: var(--danger); background: rgba(231,76,60,0.08); }
+.btn-success { color: var(--success); }
+.btn-success:hover { border-color: var(--success); background: var(--success-light); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-icon { width: 34px; height: 34px; padding: 0; justify-content: center; border-radius: var(--radius-sm); }
+
+/* ========== Cards ========== */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.card-header h3 { font-size: 16px; font-weight: 600; }
+
+/* ========== Stats Grid ========== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+.stat-card .stat-icon { font-size: 28px; margin-bottom: 8px; }
+.stat-card .stat-value { font-size: 28px; font-weight: 700; color: var(--text); }
+.stat-card .stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+/* ========== Notes List ========== */
+.notes-toolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.search-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.search-input:focus { border-color: var(--border-focus); }
+.search-input::placeholder { color: var(--text-muted); }
+.filter-select {
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+.note-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  transition: all var(--transition);
+  cursor: pointer;
+}
+.note-card:hover { border-color: var(--accent); box-shadow: var(--shadow-lg); }
+.note-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.note-card-preview {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.5;
+}
+.note-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.note-card-meta .tag {
+  background: var(--accent-light);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.note-card-meta .published { color: var(--success); }
+.note-card-meta .draft { color: var(--warning); }
+.note-card-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* ========== Editor Modal ========== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--bg-modal);
+  z-index: 200;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+  overflow-y: auto;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 900px;
+  margin: 20px auto;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 40px);
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h3 { font-size: 18px; font-weight: 600; }
+.modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+.modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.form-input, .form-textarea, .form-select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--border-focus); }
+.form-textarea {
+  min-height: 300px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+.editor-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  min-height: 350px;
+}
+.editor-pane { display: flex; flex-direction: column; }
+.editor-pane .pane-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.editor-pane textarea {
+  flex: 1;
+  min-height: 350px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.preview-pane {
+  flex: 1;
+  min-height: 350px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.preview-pane h1,.preview-pane h2,.preview-pane h3 { margin-top: 16px; margin-bottom: 8px; }
+.preview-pane h1 { font-size: 22px; }
+.preview-pane h2 { font-size: 18px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+.preview-pane h3 { font-size: 16px; }
+.preview-pane p { margin-bottom: 10px; }
+.preview-pane code {
+  background: var(--bg-code);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.preview-pane pre {
+  background: var(--bg-code);
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  margin: 10px 0;
+  border: 1px solid var(--border);
+}
+.preview-pane pre code { background: none; padding: 0; }
+.preview-pane ul, .preview-pane ol { padding-left: 20px; margin-bottom: 10px; }
+.preview-pane li { margin-bottom: 4px; }
+.preview-pane table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 13px;
+}
+.preview-pane th, .preview-pane td {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.preview-pane th { background: var(--bg-hover); font-weight: 600; }
+.preview-pane blockquote {
+  border-left: 3px solid var(--accent);
+  padding: 8px 16px;
+  margin: 10px 0;
+  color: var(--text-secondary);
+  background: var(--accent-light);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* ========== Settings ========== */
+.settings-section { margin-bottom: 28px; }
+.settings-section h3 { font-size: 16px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  gap: 16px;
+}
+.settings-row .label { font-size: 14px; font-weight: 500; }
+.settings-row .desc { font-size: 12px; color: var(--text-muted); }
+.settings-row .input-group { display: flex; gap: 8px; align-items: center; }
+.settings-row .input-group input { width: 350px; }
+
+/* ========== Toast ========== */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: #fff;
+  animation: slideIn 0.3s ease;
+  box-shadow: var(--shadow-lg);
+  max-width: 360px;
+}
+.toast-success { background: var(--success); }
+.toast-error { background: var(--danger); }
+.toast-info { background: var(--accent); }
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ========== Empty State ========== */
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.empty .empty-icon { font-size: 48px; margin-bottom: 16px; }
+.empty h3 { font-size: 18px; margin-bottom: 8px; color: var(--text-secondary); }
+.empty p { font-size: 14px; margin-bottom: 20px; }
+
+/* ========== Mobile ========== */
+.menu-toggle {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 150;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 20px;
+  align-items: center;
+  justify-content: center;
+}
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--bg-modal);
+  z-index: 90;
+}
+.theme-toggle {
+  position: fixed;
+  top: 12px;
+  right: 20px;
+  z-index: 150;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .menu-toggle { display: flex; }
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.active { transform: translateX(0); }
+  .sidebar-overlay.active { display: block; }
+  .main { margin-left: 0; padding: 60px 16px 32px; max-width: 100vw; }
+  .editor-container { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .notes-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .page-header { flex-direction: column; align-items: flex-start; }
+  .settings-row { flex-direction: column; align-items: flex-start; }
+  .settings-row .input-group { width: 100%; }
+  .settings-row .input-group input { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<button class="menu-toggle" id="menuToggle" aria-label="菜单">☰</button>
+<button class="theme-toggle" id="themeToggle" aria-label="切换主题">🌙</button>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h1><span class="icon">📝</span> SmartNotes</h1>
+      <div class="subtitle">笔记管理平台</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">主菜单</div>
+        <div class="nav-item active" data-page="dashboard">
+          <span>📊</span> 仪表盘
+        </div>
+        <div class="nav-item" data-page="notes">
+          <span>📋</span> 全部笔记
+          <span class="badge" id="notesCount">0</span>
+        </div>
+        <div class="nav-item" data-page="categories">
+          <span>📁</span> 分类管理
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">发布</div>
+        <div class="nav-item" data-page="publish">
+          <span>🚀</span> 发布到 GitHub
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">设置</div>
+        <div class="nav-item" data-page="settings">
+          <span>⚙️</span> 设置
+        </div>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="dot"></span> 数据存储在浏览器本地
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main" id="mainContent">
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <h2>📊 仪表盘</h2>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="app.openEditor()">+ 新建笔记</button>
+        </div>
+      </div>
+      <div class="stats-grid" id="dashboardStats"></div>
+      <div class="card">
+        <div class="card-header">
+          <h3>📌 最近笔记</h3>
+          <button class="btn btn-sm" onclick="app.navigate('notes')">查看全部 →</button>
+        </div>
+        <div id="recentNotes"></div>
+      </div>
+    </div>
+
+    <!-- Notes List -->
+    <div class="page" id="page-notes">
+      <div class="page-header">
+        <h2>📋 全部笔记</h2>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="app.openEditor()">+ 新建笔记</button>
+        </div>
+      </div>
+      <div class="notes-toolbar">
+        <input type="text" class="search-input" id="notesSearch" placeholder="🔍 搜索笔记标题、内容或标签..." oninput="app.renderNotes()">
+        <select class="filter-select" id="notesFilter" onchange="app.renderNotes()">
+          <option value="all">全部状态</option>
+          <option value="published">已发布</option>
+          <option value="draft">草稿</option>
+        </select>
+        <select class="filter-select" id="categoryFilter" onchange="app.renderNotes()">
+          <option value="all">全部分类</option>
+        </select>
+        <select class="filter-select" id="sortBy" onchange="app.renderNotes()">
+          <option value="updated">按更新时间</option>
+          <option value="created">按创建时间</option>
+          <option value="title">按标题</option>
+        </select>
+      </div>
+      <div class="notes-grid" id="notesGrid"></div>
+      <div class="empty" id="notesEmpty">
+        <div class="empty-icon">📝</div>
+        <h3>还没有笔记</h3>
+        <p>点击「新建笔记」开始记录你的想法</p>
+        <button class="btn btn-primary" onclick="app.openEditor()">+ 新建笔记</button>
+      </div>
+    </div>
+
+    <!-- Categories -->
+    <div class="page" id="page-categories">
+      <div class="page-header">
+        <h2>📁 分类管理</h2>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="app.addCategory()">+ 新建分类</button>
+        </div>
+      </div>
+      <div id="categoriesList"></div>
+    </div>
+
+    <!-- Publish -->
+    <div class="page" id="page-publish">
+      <div class="page-header">
+        <h2>🚀 发布到 GitHub</h2>
+      </div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><h3>发布状态</h3></div>
+        <div class="settings-row">
+          <div>
+            <div class="label">GitHub 仓库</div>
+            <div class="desc" id="publishRepoInfo">未配置</div>
+          </div>
+          <button class="btn btn-sm" onclick="app.navigate('settings')">配置仓库</button>
+        </div>
+      </div>
+      <div class="notes-grid" id="publishableNotes"></div>
+      <div class="empty" id="publishEmpty">
+        <div class="empty-icon">✅</div>
+        <h3>所有笔记已发布</h3>
+        <p>没有待发布的笔记</p>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="page" id="page-settings">
+      <div class="page-header"><h2>⚙️ 设置</h2></div>
+      <div class="card">
+        <div class="settings-section">
+          <h3>GitHub 配置</h3>
+          <div class="settings-row">
+            <div>
+              <div class="label">GitHub Token</div>
+              <div class="desc">用于通过 API 发布笔记到仓库</div>
+            </div>
+            <div class="input-group">
+              <input type="password" class="form-input" id="ghToken" placeholder="ghp_xxxxxxxxxxxx" style="width:280px">
+              <button class="btn btn-sm" onclick="app.saveSettings()">保存</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="label">仓库路径</div>
+              <div class="desc">格式: 用户名/仓库名，如 aiiw/notes</div>
+            </div>
+            <div class="input-group">
+              <input type="text" class="form-input" id="ghRepo" placeholder="aiiw/notes" style="width:280px">
+            </div>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="label">文件路径前缀</div>
+              <div class="desc">笔记在仓库中的目录，如 notes/</div>
+            </div>
+            <div class="input-group">
+              <input type="text" class="form-input" id="ghPath" placeholder="notes/" style="width:280px">
+            </div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>数据管理</h3>
+          <div class="settings-row">
+            <div>
+              <div class="label">导出所有笔记</div>
+              <div class="desc">下载 JSON 格式的备份文件</div>
+            </div>
+            <button class="btn" onclick="app.exportData()">📥 导出</button>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="label">导入笔记</div>
+              <div class="desc">从 JSON 备份文件恢复</div>
+            </div>
+            <div class="input-group">
+              <input type="file" id="importFile" accept=".json" class="form-input" style="width:200px">
+              <button class="btn" onclick="app.importData()">📤 导入</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="label" style="color:var(--danger)">清除所有数据</div>
+              <div class="desc">这将删除所有笔记和分类，不可恢复</div>
+            </div>
+            <button class="btn btn-danger" onclick="app.clearAll()">🗑 清除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Editor Modal -->
+<div class="modal-overlay" id="editorModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="editorTitle">新建笔记</h3>
+      <button class="btn btn-icon" onclick="app.closeEditor()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>标题 *</label>
+          <input type="text" class="form-input" id="noteTitle" placeholder="输入笔记标题">
+        </div>
+        <div class="form-group">
+          <label>分类</label>
+          <select class="form-select" id="noteCategory">
+            <option value="">未分类</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>标签（用逗号分隔）</label>
+        <input type="text" class="form-input" id="noteTags" placeholder="SQL, 模具, 教程">
+      </div>
+      <div class="editor-container">
+        <div class="editor-pane">
+          <div class="pane-label">Markdown 编辑</div>
+          <textarea class="form-textarea" id="noteContent" placeholder="在此输入 Markdown 内容..." oninput="app.updatePreview()"></textarea>
+        </div>
+        <div class="editor-pane">
+          <div class="pane-label">预览</div>
+          <div class="preview-pane" id="notePreview"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="app.closeEditor()">取消</button>
+      <button class="btn btn-success" id="btnPublishNow" onclick="app.saveAndPublish()">💾 保存并发布</button>
+      <button class="btn btn-primary" onclick="app.saveNote()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@11/marked.min.js"></script>
+<script>
+// ==================== App State ====================
+const STORAGE_KEY = 'smartnotes_data';
+const SETTINGS_KEY = 'smartnotes_settings';
+
+class SmartNotes {
+  constructor() {
+    this.data = this.loadData();
+    this.settings = this.loadSettings();
+    this.editingId = null;
+    this.init();
+  }
+
+  // ==================== Data Layer ====================
+  loadData() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : { notes: [], categories: ['SQL技术', '模具业务', 'Python', '前端开发', '工具', '其他'] };
+    } catch (e) {
+      return { notes: [], categories: ['SQL技术', '模具业务', 'Python', '前端开发', '工具', '其他'] };
+    }
+  }
+
+  saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+  }
+
+  loadSettings() {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      return raw ? JSON.parse(raw) : { token: '', repo: '', path: 'notes/' };
+    } catch (e) {
+      return { token: '', repo: '', path: 'notes/' };
+    }
+  }
+
+  saveSettings() {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.settings));
+  }
+
+  generateId() { return 'note_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6); }
+
+  getNote(id) { return this.data.notes.find(n => n.id === id); }
+
+  // ==================== UI Navigation ====================
+  navigate(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const pageEl = document.getElementById('page-' + page);
+    if (pageEl) pageEl.classList.add('active');
+    const navEl = document.querySelector(`.nav-item[data-page="${page}"]`);
+    if (navEl) navEl.classList.add('active');
+    this.refreshView(page);
+    // Close sidebar on mobile
+    document.getElementById('sidebar').classList.remove('active');
+    document.getElementById('sidebarOverlay').classList.remove('active');
+  }
+
+  refreshView(page) {
+    switch (page) {
+      case 'dashboard': this.renderDashboard(); break;
+      case 'notes': this.renderNotes(); break;
+      case 'categories': this.renderCategories(); break;
+      case 'publish': this.renderPublish(); break;
+      case 'settings': this.renderSettings(); break;
+    }
+    this.updateBadges();
+  }
+
+  updateBadges() {
+    document.getElementById('notesCount').textContent = this.data.notes.length;
+  }
+
+  // ==================== Dashboard ====================
+  renderDashboard() {
+    const total = this.data.notes.length;
+    const published = this.data.notes.filter(n => n.published).length;
+    const drafts = total - published;
+    const categories = new Set(this.data.notes.map(n => n.category).filter(Boolean)).size;
+
+    document.getElementById('dashboardStats').innerHTML = `
+      <div class="stat-card"><div class="stat-icon">📝</div><div class="stat-value">${total}</div><div class="stat-label">总笔记数</div></div>
+      <div class="stat-card"><div class="stat-icon">🚀</div><div class="stat-value">${published}</div><div class="stat-label">已发布</div></div>
+      <div class="stat-card"><div class="stat-icon">📄</div><div class="stat-value">${drafts}</div><div class="stat-label">草稿</div></div>
+      <div class="stat-card"><div class="stat-icon">📁</div><div class="stat-value">${categories}</div><div class="stat-label">分类数</div></div>
+    `;
+
+    const recent = [...this.data.notes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5);
+    const recentHtml = recent.length === 0
+      ? '<div class="empty"><div class="empty-icon">📝</div><h3>还没有笔记</h3></div>'
+      : recent.map(n => `
+        <div style="padding:12px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="app.openEditor('${n.id}')">
+          <div>
+            <div style="font-weight:500;font-size:14px">${this.escapeHtml(n.title) || '无标题'}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${n.category || '未分类'} · ${this.formatDate(n.updatedAt)}</div>
+          </div>
+          <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${n.published?'var(--success-light)':'var(--warning-light)'};color:${n.published?'var(--success)':'var(--warning)'}">${n.published?'已发布':'草稿'}</span>
+        </div>
+      `).join('');
+    document.getElementById('recentNotes').innerHTML = recentHtml;
+  }
+
+  // ==================== Notes List ====================
+  renderNotes() {
+    const search = (document.getElementById('notesSearch')?.value || '').toLowerCase();
+    const filter = document.getElementById('notesFilter')?.value || 'all';
+    const catFilter = document.getElementById('categoryFilter')?.value || 'all';
+    const sort = document.getElementById('sortBy')?.value || 'updated';
+
+    // Update category filter
+    const catSelect = document.getElementById('categoryFilter');
+    if (catSelect) {
+      const cats = new Set(this.data.notes.map(n => n.category).filter(Boolean));
+      catSelect.innerHTML = '<option value="all">全部分类</option>' +
+        [...cats].map(c => `<option value="${this.escapeHtml(c)}" ${catFilter===c?'selected':''}>${this.escapeHtml(c)}</option>`).join('');
+    }
+
+    let notes = [...this.data.notes];
+
+    if (search) {
+      notes = notes.filter(n =>
+        (n.title || '').toLowerCase().includes(search) ||
+        (n.content || '').toLowerCase().includes(search) ||
+        (n.tags || []).some(t => t.toLowerCase().includes(search))
+      );
+    }
+    if (filter === 'published') notes = notes.filter(n => n.published);
+    if (filter === 'draft') notes = notes.filter(n => !n.published);
+    if (catFilter !== 'all') notes = notes.filter(n => n.category === catFilter);
+
+    if (sort === 'created') notes.sort((a, b) => b.createdAt - a.createdAt);
+    else if (sort === 'title') notes.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+    else notes.sort((a, b) => b.updatedAt - a.updatedAt);
+
+    document.getElementById('notesGrid').style.display = notes.length ? '' : 'none';
+    document.getElementById('notesEmpty').style.display = notes.length ? 'none' : 'block';
+
+    document.getElementById('notesGrid').innerHTML = notes.map(n => `
+      <div class="note-card" onclick="app.openEditor('${n.id}')">
+        <div class="note-card-title">${this.escapeHtml(n.title) || '无标题'}</div>
+        <div class="note-card-preview">${this.escapeHtml((n.content || '').replace(/[#*`>\-\[\]\(\)]/g, '').substring(0, 150))}</div>
+        <div class="note-card-meta">
+          <span>${n.category ? this.escapeHtml(n.category) : '未分类'}</span>
+          ${(n.tags || []).map(t => `<span class="tag">${this.escapeHtml(t)}</span>`).join('')}
+          <span class="${n.published ? 'published' : 'draft'}">${n.published ? '✓ 已发布' : '○ 草稿'}</span>
+          <span>${this.formatDate(n.updatedAt)}</span>
+        </div>
+        <div class="note-card-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-sm btn-success" onclick="app.publishNote('${n.id}')" title="发布到 GitHub">🚀</button>
+          <button class="btn btn-sm btn-danger" onclick="app.deleteNote('${n.id}')" title="删除">🗑</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ==================== Editor ====================
+  openEditor(id) {
+    this.editingId = id || null;
+    const note = id ? this.getNote(id) : null;
+    document.getElementById('editorTitle').textContent = id ? '编辑笔记' : '新建笔记';
+    document.getElementById('noteTitle').value = note ? note.title : '';
+    document.getElementById('noteContent').value = note ? note.content : '';
+    document.getElementById('noteTags').value = note ? (note.tags || []).join(', ') : '';
+
+    // Update category dropdown
+    const catSelect = document.getElementById('noteCategory');
+    catSelect.innerHTML = '<option value="">未分类</option>' +
+      this.data.categories.map(c => `<option value="${this.escapeHtml(c)}" ${note&&note.category===c?'selected':''}>${this.escapeHtml(c)}</option>`).join('');
+
+    document.getElementById('noteCategory').value = note ? (note.category || '') : '';
+    document.getElementById('btnPublishNow').style.display = id ? '' : 'none';
+    this.updatePreview();
+    document.getElementById('editorModal').classList.add('active');
+    setTimeout(() => document.getElementById('noteTitle').focus(), 100);
+  }
+
+  closeEditor() {
+    document.getElementById('editorModal').classList.remove('active');
+    this.editingId = null;
+  }
+
+  updatePreview() {
+    const content = document.getElementById('noteContent').value;
+    const preview = document.getElementById('notePreview');
+    try {
+      preview.innerHTML = marked.parse(content || '');
+    } catch (e) {
+      preview.innerHTML = '<p style="color:var(--danger)">Markdown 解析错误</p>';
+    }
+  }
+
+  saveNote() {
+    const title = document.getElementById('noteTitle').value.trim();
+    const content = document.getElementById('noteContent').value;
+    const category = document.getElementById('noteCategory').value;
+    const tags = document.getElementById('noteTags').value.split(',').map(t => t.trim()).filter(Boolean);
+
+    if (!title) { this.toast('请输入标题', 'error'); return; }
+
+    const now = Date.now();
+    if (this.editingId) {
+      const note = this.getNote(this.editingId);
+      if (note) {
+        note.title = title;
+        note.content = content;
+        note.category = category;
+        note.tags = tags;
+        note.updatedAt = now;
+      }
+    } else {
+      this.data.notes.push({
+        id: this.generateId(),
+        title, content, category, tags,
+        createdAt: now, updatedAt: now,
+        published: false, githubPath: ''
+      });
+    }
+
+    // Auto-add category if new
+    if (category && !this.data.categories.includes(category)) {
+      this.data.categories.push(category);
+    }
+
+    this.saveData();
+    this.closeEditor();
+    this.toast(this.editingId ? '笔记已更新' : '笔记已创建', 'success');
+    this.refreshCurrentView();
+  }
+
+  saveAndPublish() {
+    this.saveNote();
+    // After save, the editingId might be cleared, so we need to find the note
+    // Actually saveNote closes editor and clears editingId, so we need a different approach
+    // Let's save first, then publish the last edited note
+    this.toast('先保存笔记，再发布', 'info');
+  }
+
+  deleteNote(id) {
+    if (!confirm('确定要删除这条笔记吗？此操作不可恢复。')) return;
+    this.data.notes = this.data.notes.filter(n => n.id !== id);
+    this.saveData();
+    this.toast('笔记已删除', 'success');
+    this.refreshCurrentView();
+  }
+
+  // ==================== GitHub Publishing ====================
+  async publishNote(id) {
+    const token = this.settings.token;
+    const repo = this.settings.repo;
+    const path = this.settings.path;
+
+    if (!token) { this.toast('请先在设置中配置 GitHub Token', 'error'); return; }
+    if (!repo) { this.toast('请先在设置中配置 GitHub 仓库', 'error'); return; }
+
+    const note = this.getNote(id);
+    if (!note) { this.toast('笔记不存在', 'error'); return; }
+
+    const fileName = (note.title || 'untitled').replace(/[\/\\:*?"<>|]/g, '-') + '.md';
+    const filePath = (path + fileName).replace(/\/\//g, '/');
+
+    const content = [
+      `# ${note.title}`,
+      '',
+      `> 分类：${note.category || '未分类'} | 标签：${(note.tags || []).join(', ') || '无'}`,
+      `> 创建：${this.formatDate(note.createdAt)} | 更新：${this.formatDate(note.updatedAt)}`,
+      '',
+      '---',
+      '',
+      note.content
+    ].join('\n');
+
+    const body = {
+      message: `publish: ${note.title}`,
+      content: btoa(unescape(encodeURIComponent(content))),
+      branch: 'main'
+    };
+
+    // Check if file already exists
+    try {
+      const checkResp = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, {
+        headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github+json' }
+      });
+      if (checkResp.ok) {
+        const existing = await checkResp.json();
+        body.sha = existing.sha;
+      }
+    } catch (e) {}
+
+    try {
+      const resp = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (resp.ok) {
+        const result = await resp.json();
+        note.published = true;
+        note.githubPath = result.content?.html_url || filePath;
+        note.updatedAt = Date.now();
+        this.saveData();
+        this.toast(`已发布到 GitHub: ${filePath}`, 'success');
+        this.refreshCurrentView();
+      } else {
+        const err = await resp.json();
+        this.toast(`发布失败: ${err.message || '未知错误'}`, 'error');
+      }
+    } catch (e) {
+      this.toast(`网络错误: ${e.message}`, 'error');
+    }
+  }
+
+  async publishAll() {
+    const token = this.settings.token;
+    const repo = this.settings.repo;
+    if (!token || !repo) { this.toast('请先配置 GitHub', 'error'); return; }
+
+    const unpublished = this.data.notes.filter(n => !n.published);
+    if (unpublished.length === 0) { this.toast('没有待发布的笔记', 'info'); return; }
+
+    this.toast(`开始发布 ${unpublished.length} 条笔记...`, 'info');
+    for (const note of unpublished) {
+      await this.publishNote(note.id);
+    }
+  }
+
+  renderPublish() {
+    const token = this.settings.token;
+    const repo = this.settings.repo;
+    document.getElementById('publishRepoInfo').textContent = repo || '未配置';
+
+    const unpublished = this.data.notes.filter(n => !n.published);
+    document.getElementById('publishableNotes').style.display = unpublished.length ? '' : 'none';
+    document.getElementById('publishEmpty').style.display = unpublished.length ? 'none' : 'block';
+
+    document.getElementById('publishableNotes').innerHTML = unpublished.map(n => `
+      <div class="note-card">
+        <div class="note-card-title">${this.escapeHtml(n.title) || '无标题'}</div>
+        <div class="note-card-preview">${this.escapeHtml((n.content || '').substring(0, 120))}</div>
+        <div class="note-card-meta">
+          <span>${n.category || '未分类'}</span>
+          <span>${this.formatDate(n.updatedAt)}</span>
+        </div>
+        <div class="note-card-actions">
+          <button class="btn btn-sm btn-primary" onclick="app.publishNote('${n.id}')">🚀 发布</button>
+          <button class="btn btn-sm" onclick="app.openEditor('${n.id}')">✏️ 编辑</button>
+        </div>
+      </div>
+    `).join('');
+
+    if (unpublished.length > 0) {
+      document.getElementById('publishableNotes').insertAdjacentHTML('beforebegin', `
+        <div style="margin-bottom:16px;display:flex;gap:8px;align-items:center">
+          <span style="color:var(--text-secondary);font-size:14px">${unpublished.length} 条待发布</span>
+          <button class="btn btn-success" onclick="app.publishAll()">📦 一键全部发布</button>
+        </div>
+      `);
+    }
+  }
+
+  // ==================== Categories ====================
+  renderCategories() {
+    document.getElementById('categoriesList').innerHTML = this.data.categories.map(cat => {
+      const count = this.data.notes.filter(n => n.category === cat).length;
+      return `
+        <div class="card" style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <span style="font-size:18px;margin-right:8px">📁</span>
+              <span style="font-weight:500">${this.escapeHtml(cat)}</span>
+              <span style="font-size:12px;color:var(--text-muted);margin-left:8px">${count} 条笔记</span>
+            </div>
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-sm" onclick="app.renameCategory('${this.escapeHtml(cat)}')">✏️</button>
+              <button class="btn btn-sm btn-danger" onclick="app.deleteCategory('${this.escapeHtml(cat)}')">🗑</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('') || '<div class="empty"><div class="empty-icon">📁</div><h3>还没有分类</h3></div>';
+  }
+
+  addCategory() {
+    const name = prompt('输入新分类名称：');
+    if (!name || !name.trim()) return;
+    const trimmed = name.trim();
+    if (this.data.categories.includes(trimmed)) { this.toast('分类已存在', 'error'); return; }
+    this.data.categories.push(trimmed);
+    this.saveData();
+    this.renderCategories();
+    this.toast('分类已添加', 'success');
+  }
+
+  renameCategory(oldName) {
+    const newName = prompt('输入新名称：', oldName);
+    if (!newName || !newName.trim() || newName.trim() === oldName) return;
+    const trimmed = newName.trim();
+    const idx = this.data.categories.indexOf(oldName);
+    if (idx >= 0) this.data.categories[idx] = trimmed;
+    this.data.notes.forEach(n => { if (n.category === oldName) n.category = trimmed; });
+    this.saveData();
+    this.renderCategories();
+    this.toast('分类已重命名', 'success');
+  }
+
+  deleteCategory(name) {
+    const count = this.data.notes.filter(n => n.category === name).length;
+    const msg = count > 0
+      ? `该分类下有 ${count} 条笔记，删除后它们将变为「未分类」。确定删除？`
+      : '确定删除该分类？';
+    if (!confirm(msg)) return;
+    this.data.categories = this.data.categories.filter(c => c !== name);
+    this.data.notes.forEach(n => { if (n.category === name) n.category = ''; });
+    this.saveData();
+    this.renderCategories();
+    this.toast('分类已删除', 'success');
+  }
+
+  // ==================== Settings ====================
+  renderSettings() {
+    document.getElementById('ghToken').value = this.settings.token || '';
+    document.getElementById('ghRepo').value = this.settings.repo || '';
+    document.getElementById('ghPath').value = this.settings.path || 'notes/';
+  }
+
+  saveSettingsData() {
+    this.settings.token = document.getElementById('ghToken').value.trim();
+    this.settings.repo = document.getElementById('ghRepo').value.trim();
+    this.settings.path = document.getElementById('ghPath').value.trim() || 'notes/';
+    this.saveSettings();
+    this.toast('设置已保存', 'success');
+  }
+
+  // ==================== Data Export/Import ====================
+  exportData() {
+    const blob = new Blob([JSON.stringify(this.data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `smartnotes-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    this.toast('数据已导出', 'success');
+  }
+
+  importData() {
+    const fileInput = document.getElementById('importFile');
+    const file = fileInput.files[0];
+    if (!file) { this.toast('请选择文件', 'error'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const imported = JSON.parse(e.target.result);
+        if (!imported.notes || !Array.isArray(imported.notes)) { throw new Error('格式错误'); }
+        if (!confirm(`将导入 ${imported.notes.length} 条笔记，当前数据将被覆盖。确定？`)) return;
+        this.data = imported;
+        if (!this.data.categories) this.data.categories = [];
+        this.saveData();
+        this.refreshCurrentView();
+        this.toast(`成功导入 ${imported.notes.length} 条笔记`, 'success');
+      } catch (err) {
+        this.toast('文件格式错误', 'error');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  clearAll() {
+    if (!confirm('确定要清除所有数据吗？此操作不可恢复！')) return;
+    if (!confirm('再次确认：所有笔记和分类将被永久删除。')) return;
+    this.data = { notes: [], categories: ['SQL技术', '模具业务', 'Python', '前端开发', '工具', '其他'] };
+    this.saveData();
+    this.refreshCurrentView();
+    this.toast('所有数据已清除', 'success');
+  }
+
+  // ==================== Utilities ====================
+  toast(msg, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; }, 2500);
+    setTimeout(() => toast.remove(), 2800);
+  }
+
+  formatDate(ts) {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+
+  escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  refreshCurrentView() {
+    const activePage = document.querySelector('.page.active');
+    if (activePage) {
+      const pageName = activePage.id.replace('page-', '');
+      this.refreshView(pageName);
+    }
+  }
+
+  // ==================== Init ====================
+  init() {
+    // Theme
+    const savedTheme = localStorage.getItem('smartnotes-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    this.updateThemeIcon(savedTheme);
+
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('smartnotes-theme', next);
+      this.updateThemeIcon(next);
+    });
+
+    // Navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => this.navigate(item.dataset.page));
+    });
+
+    // Sidebar toggle
+    document.getElementById('menuToggle').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('active');
+      document.getElementById('sidebarOverlay').classList.toggle('active');
+    });
+    document.getElementById('sidebarOverlay').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('active');
+      document.getElementById('sidebarOverlay').classList.remove('active');
+    });
+
+    // Close modal on overlay click
+    document.getElementById('editorModal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('editorModal')) this.closeEditor();
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'n') { e.preventDefault(); this.openEditor(); }
+      if (e.key === 'Escape') this.closeEditor();
+    });
+
+    // Initial render
+    this.renderDashboard();
+    this.updateBadges();
+  }
+
+  updateThemeIcon(theme) {
+    document.getElementById('themeToggle').textContent = theme === 'dark' ? '☀️' : '🌙';
+  }
+}
+
+// Initialize app
+const app = new SmartNotes();
+</script>
+</body>
+</html>
