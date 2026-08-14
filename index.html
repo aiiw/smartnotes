@@ -1139,190 +1139,272 @@ class SmartNotes {
   generateH5Page(note) {
     const h = this.escapeHtml;
     const title = note.title || '未命名笔记';
-    const safeTitle = title.replace(/[\/\\:*?"<>|]/g, '-');
     const tags = (note.tags || []).filter(Boolean);
-    const tagHtml = tags.map(t => `<span class="tag">#${h(t)}</span>`).join('');
+    const tagStr = tags.map(t => '#' + h(t)).join(' ');
+    const createdAt = note.createdAt ? new Date(note.createdAt).toLocaleDateString('zh-CN') : '';
+    const category = note.category || '未分类';
 
-    // Parse markdown to HTML
-    let htmlContent = '';
-    try {
-      htmlContent = marked.parse(note.content || '');
-    } catch (e) {
-      htmlContent = `<p>${h(note.content || '')}</p>`;
-    }
-
-    // Split content by headings into sections for accordion
+    // Parse sections
     const sections = this.parseMarkdownSections(note.content || '');
 
-    // Generate accordion cards
+    // Generate accordion items
     let accordionHtml = '';
+    let hasIntro = false;
     sections.forEach((sec, idx) => {
       if (idx === 0 && !sec.heading) {
         // Intro text before first heading
-        accordionHtml += `<div class="card intro-card"><div class="card-body">${marked.parse(sec.body)}</div></div>`;
+        hasIntro = true;
+        accordionHtml += `<div class="intro-card"><p>${this.renderExcelStyle(sec.body)}</p></div>`;
         return;
       }
       if (!sec.heading) return;
-      const sectionId = 'sec-' + idx;
+      // First real section expanded by default
+      const realIdx = hasIntro ? idx - 1 : idx;
+      const isActive = realIdx === 0 ? ' active' : '';
+      const sectionId = 'section-' + (realIdx + 1);
       accordionHtml += `
-        <div class="card accordion-card collapsed">
-          <div class="accordion-header" onclick="this.parentElement.classList.toggle('collapsed')" aria-expanded="true">
-            <span class="accordion-num">${String(idx).padStart(2,'0')}</span>
+        <div class="accordion-item${isActive}" id="${sectionId}">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <span class="badge">${realIdx + 1}</span>
             <span class="accordion-title">${h(sec.heading)}</span>
-            <span class="accordion-arrow">▲</span>
+            <span class="accordion-icon">▼</span>
           </div>
-          <div class="accordion-body">${marked.parse(sec.body)}</div>
+          <div class="accordion-content">
+            <div class="accordion-inner">${this.renderExcelStyle(sec.body)}</div>
+          </div>
         </div>`;
     });
 
     // If no sections found, render whole content
     if (sections.length === 0) {
-      accordionHtml = `<div class="card"><div class="card-body">${htmlContent}</div></div>`;
+      accordionHtml = `<div class="intro-card"><p>${marked.parse(note.content || '')}</p></div>`;
     }
 
     return `<!DOCTYPE html>
 <html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<meta name="description" content="${h(title)} - ${h(note.category || '')}">
-<meta name="theme-color" content="#16162a">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1b26">
 <title>${h(title)}</title>
 <style>
-:root{--font-sans:'Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif;--font-mono:'Cascadia Code','Fira Code','Consolas',monospace;--radius-sm:8px;--radius:12px}
-:root[data-theme="dark"]{--bg:#16162a;--bg-card:#252538;--bg-code:#1e1e2e;--bg-header:#2d2d3a;--text:#e8e8e8;--text2:#a0a0b0;--text3:#6c6c80;--accent:#6b8cff;--accent2:rgba(107,140,255,0.12);--code:#a8e063;--border:#3a3a50;--shadow:0 2px 8px rgba(0,0,0,0.3)}
-:root[data-theme="light"]{--bg:#f5f6fa;--bg-card:#fff;--bg-code:#f0f2f5;--bg-header:#fff;--text:#2c3e50;--text2:#5a6a7e;--text3:#94a3b8;--accent:#4a6cf7;--accent2:rgba(74,108,247,0.08);--code:#2e7d32;--border:#e2e8f0;--shadow:0 1px 3px rgba(0,0,0,0.08)}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font-sans);background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh}
-.header{position:sticky;top:0;z-index:100;background:var(--bg-header);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
-.header-title{font-size:18px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.header-actions{display:flex;gap:6px;flex-shrink:0}
-.icon-btn{width:38px;height:38px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
-.icon-btn:hover{border-color:var(--accent);color:var(--accent)}
-.container{max-width:800px;margin:0 auto;padding:16px}
-.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden}
-.card-body{padding:18px 20px}
-.intro-card .card-body{font-size:14px;color:var(--text2)}
-.intro-card .card-body h1{font-size:22px;color:var(--text);margin-bottom:8px}
-.meta-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:var(--text3)}
-.tag{display:inline-block;padding:2px 10px;border-radius:12px;background:var(--accent2);color:var(--accent);font-size:11px;font-weight:500}
-.accordion-header{display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer;user-select:none;transition:background .2s}
-.accordion-header:hover{background:var(--accent2)}
-.accordion-num{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+:root[data-theme="dark"]{--bg:#1a1b26;--card-bg:#24283b;--text:#c0caf5;--text-secondary:#565f89;--border:#414868;--accent:#7aa2f7;--accent2:#bb9af7;--code-bg:#1f2335;--code-text:#9ece6a;--comment:#565f89;--header-bg:rgba(36,40,59,0.95);--mark-bg:rgba(187,154,247,0.35);--warning-border:#f7768e;--warning-bg:rgba(247,118,142,0.1);--tip-border:#9ece6a;--tip-bg:rgba(158,206,106,0.1);--info-border:#7aa2f7;--info-bg:rgba(122,162,247,0.1);--badge-bg:#7aa2f7;--badge-text:#1a1b26;--shadow:0 2px 8px rgba(0,0,0,0.3)}
+:root[data-theme="light"]{--bg:#f8fafc;--card-bg:#ffffff;--text:#1e293b;--text-secondary:#64748b;--border:#e2e8f0;--accent:#2563eb;--accent2:#7c3aed;--code-bg:#f1f5f9;--code-text:#059669;--comment:#94a3b8;--header-bg:rgba(255,255,255,0.95);--mark-bg:rgba(124,58,237,0.2);--warning-border:#dc2626;--warning-bg:rgba(220,38,38,0.08);--tip-border:#059669;--tip-bg:rgba(5,150,105,0.08);--info-border:#2563eb;--info-bg:rgba(37,99,235,0.08);--badge-bg:#2563eb;--badge-text:#ffffff;--shadow:0 2px 8px rgba(0,0,0,0.1)}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.7;background:var(--bg);color:var(--text);transition:background .3s,color .3s;padding-top:56px;-webkit-tap-highlight-color:transparent}
+.header{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;height:56px;background:var(--header-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 14px;z-index:100}
+.header h1{font-size:17px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-actions{display:flex;gap:8px;flex-shrink:0}
+.header-btn{width:36px;height:36px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);border-radius:8px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.header-btn:active{transform:scale(0.92)}
+.search-box{position:fixed;top:56px;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--header-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 14px;z-index:99;max-height:0;overflow:hidden;transition:max-height .3s ease,padding .3s ease}
+.search-box.active{max-height:60px;padding:10px 14px}
+.search-input{width:100%;height:38px;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:0 14px;font-size:14px;outline:none;transition:border-color .2s}
+.search-input::placeholder{color:var(--text-secondary)}
+.search-input:focus{border-color:var(--accent)}
+.container{max-width:480px;margin:0 auto;padding:14px}
+.intro-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;font-size:13.5px;color:var(--text-secondary);line-height:1.6}
+.accordion{display:flex;flex-direction:column;gap:10px}
+.accordion-item{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:border-color .2s}
+.accordion-item.active{border-color:var(--accent)}
+.accordion-header{display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;user-select:none;-webkit-user-select:none}
+.badge{width:28px;height:28px;border-radius:50%;background:var(--badge-bg);color:var(--badge-text);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
 .accordion-title{flex:1;font-size:15px;font-weight:600;color:var(--text)}
-.accordion-arrow{font-size:12px;color:var(--accent);transition:transform .3s;flex-shrink:0}
-.accordion-card.collapsed .accordion-arrow{transform:rotate(180deg)}
-.accordion-body{padding:0 18px;max-height:5000px;overflow:hidden;transition:max-height .4s ease,padding .4s ease}
-.accordion-card.collapsed .accordion-body{max-height:0;padding:0 18px}
-.accordion-body .card-body{padding:0 0 18px 0}
-.accordion-body h2,.accordion-body h3{font-size:16px;color:var(--text);margin:14px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
-.accordion-body h4{font-size:14px;color:var(--text);margin:12px 0 6px}
-.accordion-body p{margin-bottom:10px;font-size:14px;line-height:1.7}
-.accordion-body ul,.accordion-body ol{padding-left:20px;margin-bottom:10px}
-.accordion-body li{margin-bottom:4px;font-size:14px}
-.accordion-body table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
-.accordion-body th,.accordion-body td{padding:8px 12px;border:1px solid var(--border);text-align:left}
-.accordion-body th{background:var(--accent2);font-weight:600;color:var(--accent)}
-.accordion-body blockquote{border-left:3px solid var(--accent);padding:8px 16px;margin:10px 0;color:var(--text2);background:var(--accent2);border-radius:0 var(--radius-sm) var(--radius-sm) 0}
-.accordion-body a{color:var(--accent);text-decoration:none}
-.accordion-body a:hover{text-decoration:underline}
-pre{background:var(--bg-code);border-radius:var(--radius-sm);padding:16px;overflow-x:auto;margin:10px 0;position:relative;border:1px solid var(--border);font-size:13px;line-height:1.6}
-pre code{font-family:var(--font-mono);font-size:13px;color:var(--code)}
-code{font-family:var(--font-mono);font-size:13px;background:var(--bg-code);padding:2px 6px;border-radius:4px;color:var(--code)}
-pre code{background:none;padding:0;color:var(--text)}
-.copy-btn{position:absolute;top:8px;right:8px;padding:4px 12px;border:1px solid var(--border);border-radius:4px;background:var(--bg-card);color:var(--text2);font-size:11px;cursor:pointer;opacity:0;transition:opacity .2s;font-family:var(--font-sans)}
-pre:hover .copy-btn{opacity:1}
-.copy-btn:hover{color:var(--accent);border-color:var(--accent)}
-.search-box{position:fixed;top:60px;left:0;right:0;z-index:99;background:var(--bg-header);border-bottom:1px solid var(--border);padding:10px 20px;display:none}
-.search-box.active{display:block}
-.search-box input{width:100%;max-width:800px;margin:0 auto;display:block;padding:10px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text);font-size:14px;outline:none;font-family:var(--font-sans)}
-.search-box input:focus{border-color:var(--accent)}
-.search-box input::placeholder{color:var(--text3)}
-.highlight{background:var(--accent2);border-radius:3px;padding:1px 0}
-@media(max-width:768px){.container{padding:12px}.header{padding:10px 14px}.header-title{font-size:16px}.card-body{padding:14px 16px}.accordion-header{padding:12px 14px}.accordion-title{font-size:14px}pre{font-size:12px;padding:12px}}
+.accordion-icon{color:var(--text-secondary);font-size:11px;transition:transform .3s;flex-shrink:0}
+.accordion-item.active .accordion-icon{transform:rotate(180deg)}
+.accordion-content{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.accordion-item.active .accordion-content{max-height:20000px}
+.accordion-inner{padding:0 14px 14px 14px}
+.accordion-inner p{margin:8px 0;color:var(--text);font-size:14px}
+.subheading{font-size:15.5px;font-weight:700;color:var(--accent);margin:16px 0 6px 0;padding-top:6px;border-top:1px solid var(--border)}
+.accordion-inner .subheading:first-child{border-top:none;margin-top:4px}
+.code-block{position:relative;margin:10px 0;background:var(--code-bg);border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.code-block pre{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:12px 14px;margin:0}
+.code-block code{font-family:"SF Mono","Cascadia Code","Fira Code","Consolas",monospace;font-size:13px;line-height:1.5;color:var(--code-text);white-space:pre}
+.copy-btn{position:absolute;top:6px;right:6px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-secondary);padding:3px 10px;border-radius:6px;font-size:12px;cursor:pointer;opacity:0;transition:opacity .2s;z-index:5}
+.code-block:active .copy-btn,.code-block:hover .copy-btn{opacity:1}
+.copy-btn.copied{color:var(--tip-border);border-color:var(--tip-border)}
+.inline-code{font-family:"SF Mono","Cascadia Code","Fira Code","Consolas",monospace;font-size:13px;background:var(--code-bg);color:var(--code-text);padding:1px 5px;border-radius:4px}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:10px 0;border-radius:8px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:100%}
+thead{background:var(--code-bg)}
+th{padding:8px 12px;text-align:left;font-weight:600;color:var(--accent);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:8px 12px;color:var(--text);border-bottom:1px solid var(--border)}
+tbody tr:last-child td{border-bottom:none}
+.callout{margin:10px 0;padding:10px 14px;border-radius:8px;border-left:3px solid;font-size:14px}
+.callout-tip{border-color:var(--tip-border);background:var(--tip-bg)}
+.callout-warning{border-color:var(--warning-border);background:var(--warning-bg)}
+.callout-info{border-color:var(--info-border);background:var(--info-bg)}
+.callout p{margin:4px 0}
+.callout strong{color:var(--accent)}
+.callout-warning strong{color:var(--warning-border)}
+.callout-tip strong{color:var(--tip-border)}
+.callout .code-block{margin:6px 0}
+.callout .subheading{border-top:none}
+.accordion-inner ul,.accordion-inner ol{padding-left:20px;margin:6px 0}
+.accordion-inner li{margin:4px 0;color:var(--text);font-size:14px}
+.accordion-inner a{color:var(--accent);text-decoration:none;border-bottom:1px dashed var(--accent)}
+.accordion-inner a:hover{text-decoration:none;border-bottom-style:solid}
+mark.search-highlight{background:var(--mark-bg);color:inherit;border-radius:2px;padding:0 1px}
+.accordion-item.hidden{display:none}
+.no-results{text-align:center;padding:40px 20px;color:var(--text-secondary);font-size:14px;display:none}
+.back-to-top{position:fixed;bottom:24px;right:24px;width:44px;height:44px;border-radius:50%;background:var(--accent);color:var(--badge-text);border:none;font-size:20px;cursor:pointer;z-index:50;opacity:0;pointer-events:none;transition:opacity .3s,transform .2s;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center}
+.back-to-top.visible{opacity:1;pointer-events:auto}
+.back-to-top:active{transform:scale(0.88)}
+.footer{max-width:480px;margin:20px auto 30px auto;padding:0 14px}
+.footer-section{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px}
+.footer-section h3{font-size:14px;font-weight:700;color:var(--accent);margin-bottom:8px}
+.footer-section ul{list-style:none;padding:0}
+.footer-section li{font-size:13px;color:var(--text-secondary);margin:4px 0;line-height:1.5}
 </style>
 </head>
 <body>
 <header class="header">
-  <span class="header-title">${h(title)}</span>
+  <h1>${h(title)}</h1>
   <div class="header-actions">
-    <button class="icon-btn" onclick="toggleSearch()" title="搜索">🔍</button>
-    <button class="icon-btn" onclick="toggleTheme()" id="themeBtn" title="切换主题">🌙</button>
+    <button class="header-btn" id="search-toggle" onclick="toggleSearch()">🔍</button>
+    <button class="header-btn" id="theme-toggle" onclick="toggleTheme()">🌙</button>
   </div>
 </header>
-<div class="search-box" id="searchBox">
-  <input type="text" id="searchInput" placeholder="搜索内容..." oninput="doSearch()">
+<div class="search-box" id="search-box">
+  <input type="text" class="search-input" id="search-input" placeholder="搜索章节内容..." oninput="performSearch(this.value)">
 </div>
-<div class="container">
-  <!-- Meta card -->
-  <div class="card intro-card">
-    <div class="card-body">
-      <h1>${h(title)}</h1>
-      <div class="meta-row">
-        <span>📁 ${h(note.category || '未分类')}</span>
-        <span>📅 ${note.createdAt ? new Date(note.createdAt).toLocaleDateString('zh-CN') : ''}</span>
-        ${tagHtml}
-      </div>
-    </div>
-  </div>
-  <!-- Content sections -->
+<main class="container">
   ${accordionHtml}
+</main>
+<div class="footer">
+  <div class="footer-section">
+    <h3>📋 笔记信息</h3>
+    <ul>
+      <li>📁 分类：${h(category)}</li>
+      <li>📅 创建：${createdAt}</li>
+      ${tagStr ? '<li>🏷 标签：' + tagStr + '</li>' : ''}
+      <li>📝 由 <a href="https://aiiw.github.io/smartnotes/" style="color:var(--accent)">SmartNotes</a> 生成</li>
+    </ul>
+  </div>
 </div>
+<button class="back-to-top" id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
 <script>
 (function(){
   var html=document.documentElement;
-  var saved='dark';
-  html.setAttribute('data-theme',saved);
-  document.getElementById('themeBtn').textContent='☀️';
+  html.setAttribute('data-theme','dark');
+  var themeBtn=document.getElementById('theme-toggle');
+  themeBtn.textContent='☀️';
   window.toggleTheme=function(){
     var cur=html.getAttribute('data-theme');
     var next=cur==='dark'?'light':'dark';
     html.setAttribute('data-theme',next);
-    localStorage.setItem('h5note-theme',next);
-    document.getElementById('themeBtn').textContent=next==='dark'?'☀️':'🌙';
+    themeBtn.textContent=next==='dark'?'☀️':'🌙';
+    try{localStorage.setItem('h5note-theme',next)}catch(e){}
   };
   window.toggleSearch=function(){
-    document.getElementById('searchBox').classList.toggle('active');
-    var inp=document.getElementById('searchInput');
-    if(document.getElementById('searchBox').classList.contains('active')){inp.focus();inp.value='';}
-    doSearch();
+    var sb=document.getElementById('search-box');
+    sb.classList.toggle('active');
+    var inp=document.getElementById('search-input');
+    if(sb.classList.contains('active')){inp.focus();inp.value='';performSearch('')}
   };
-  window.doSearch=function(){
-    var q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
-    document.querySelectorAll('.accordion-card').forEach(function(card){
-      if(!q){card.style.display='';card.classList.remove('collapsed');return;}
-      var text=card.textContent.toLowerCase();
-      if(text.indexOf(q)>=0){card.style.display='';card.classList.remove('collapsed');}
-      else{card.style.display='none';}
+  window.toggleAccordion=function(header){
+    header.parentElement.classList.toggle('active');
+  };
+  window.performSearch=function(q){
+    q=(q||'').toLowerCase().trim();
+    var items=document.querySelectorAll('.accordion-item');
+    var found=0;
+    items.forEach(function(item){
+      if(!q){item.classList.remove('hidden');item.classList.add('active');found++;return;}
+      var text=item.textContent.toLowerCase();
+      if(text.indexOf(q)>=0){item.classList.remove('hidden');item.classList.add('active');found++}
+      else{item.classList.add('hidden');item.classList.remove('active')}
     });
+    var nr=document.getElementById('no-results');
+    if(!nr){
+      nr=document.createElement('div');nr.className='no-results';nr.id='no-results';
+      nr.textContent='没有匹配的章节';
+      document.querySelector('.container').appendChild(nr);
+    }
+    nr.style.display=q&&found===0?'block':'none';
+    // Highlight
+    document.querySelectorAll('mark.search-highlight').forEach(function(m){var p=m.parentNode;p.replaceChild(document.createTextNode(m.textContent),m);p.normalize()});
+    if(q&&found>0){
+      document.querySelectorAll('.accordion-inner p,.accordion-inner li,.subheading,.accordion-title').forEach(function(el){
+        if(el.querySelector('mark'))return;
+        var txt=el.textContent;var idx=txt.toLowerCase().indexOf(q);
+        if(idx>=0){
+          var range=document.createRange();var walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT,null,false);
+          var node,offset=0;
+          while(node=walker.nextNode()){if(offset+node.length>idx){range.setStart(node,idx-offset);range.setEnd(node,idx-offset+q.length);break}offset+=node.length}
+          try{var mark=document.createElement('mark');mark.className='search-highlight';range.surroundContents(mark)}catch(e){}
+        }
+      });
+    }
   };
   // Copy buttons
-  document.querySelectorAll('pre').forEach(function(pre){
+  document.querySelectorAll('.code-block').forEach(function(block){
     var btn=document.createElement('button');
     btn.className='copy-btn';btn.textContent='复制';
     btn.addEventListener('click',function(e){
       e.stopPropagation();
-      var code=pre.querySelector('code');
-      var text=code?code.textContent:pre.textContent;
+      var code=block.querySelector('code');
+      var text=code?code.textContent:block.textContent;
       navigator.clipboard.writeText(text).then(function(){
-        btn.textContent='已复制';setTimeout(function(){btn.textContent='复制';},2000);
+        btn.textContent='已复制';btn.classList.add('copied');
+        setTimeout(function(){btn.textContent='复制';btn.classList.remove('copied')},2000);
       }).catch(function(){
         var ta=document.createElement('textarea');ta.value=text;
         document.body.appendChild(ta);ta.select();document.execCommand('copy');
-        document.body.removeChild(ta);btn.textContent='已复制';
-        setTimeout(function(){btn.textContent='复制';},2000);
+        document.body.removeChild(ta);btn.textContent='已复制';btn.classList.add('copied');
+        setTimeout(function(){btn.textContent='复制';btn.classList.remove('copied')},2000);
       });
     });
-    pre.appendChild(btn);
+    block.appendChild(btn);
   });
-  // Keyboard shortcut: Ctrl+K for search
+  // Back to top
+  var btt=document.getElementById('back-to-top');
+  window.addEventListener('scroll',function(){
+    if(window.scrollY>300)btt.classList.add('visible');else btt.classList.remove('visible')
+  });
+  // Keyboard shortcut
   document.addEventListener('keydown',function(e){
-    if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();toggleSearch();}
+    if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();toggleSearch()}
   });
 })();
 <\/script>
 </body>
 </html>`;
+  }
+
+  // Render markdown content with excel-h5-formulas style
+  renderExcelStyle(md) {
+    if (!md || !md.trim()) return '';
+    let html = marked.parse(md);
+    // Protect code blocks first
+    let codeBlocks = [];
+    html = html.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, function(m, code) {
+      codeBlocks.push(code);
+      return '%%CODEBLOCK' + (codeBlocks.length - 1) + '%%';
+    });
+    // Subheadings
+    html = html.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '<div class="subheading">$1</div>');
+    html = html.replace(/<h4[^>]*>(.*?)<\/h4>/gi, '<div class="subheading">$1</div>');
+    // Tables
+    html = html.replace(/<table>/g, '<div class="table-wrap"><table>');
+    html = html.replace(/<\/table>/g, '<\/table><\/div>');
+    // Inline code (only remaining <code> tags, not inside pre blocks)
+    html = html.replace(/<code>/g, '<code class="inline-code">');
+    // Callout boxes from blockquotes
+    html = html.replace(/<blockquote>\s*<p><strong>(固定写法|风险点|注意)<\/strong>/gi, function(m, type) {
+      const cls = type === '固定写法' ? 'callout-tip' : type === '风险点' ? 'callout-warning' : 'callout-info';
+      return '<div class="callout ' + cls + '"><p><strong>' + type + '</strong>';
+    });
+    html = html.replace(/<\/p>\s*<\/blockquote>/g, '</p></div>');
+    html = html.replace(/<blockquote>/g, '<div class="callout callout-info">');
+    html = html.replace(/<\/blockquote>/g, '</div>');
+    // Restore code blocks with wrapper
+    html = html.replace(/%%CODEBLOCK(\d+)%%/g, function(m, idx) {
+      return '<div class="code-block"><pre><code>' + codeBlocks[parseInt(idx)] + '<\/code><\/pre><\/div>';
+    });
+    return html;
   }
 
   parseMarkdownSections(md) {
@@ -1344,11 +1426,9 @@ pre:hover .copy-btn{opacity:1}
         currentBody.push(line);
       }
     }
-    // Last section
     if (currentBody.length > 0 || currentHeading) {
       sections.push({ heading: currentHeading, body: currentBody.join('\n').trim() });
     }
-
     return sections;
   }
 
