@@ -1165,7 +1165,7 @@ class SmartNotes {
       if (!sec.heading) return;
       const sectionId = 'sec-' + idx;
       accordionHtml += `
-        <div class="card accordion-card">
+        <div class="card accordion-card collapsed">
           <div class="accordion-header" onclick="this.parentElement.classList.toggle('collapsed')" aria-expanded="true">
             <span class="accordion-num">${String(idx).padStart(2,'0')}</span>
             <span class="accordion-title">${h(sec.heading)}</span>
@@ -1271,9 +1271,9 @@ pre:hover .copy-btn{opacity:1}
 <script>
 (function(){
   var html=document.documentElement;
-  var saved=localStorage.getItem('h5note-theme')||'dark';
+  var saved='dark';
   html.setAttribute('data-theme',saved);
-  document.getElementById('themeBtn').textContent=saved==='dark'?'☀️':'🌙';
+  document.getElementById('themeBtn').textContent='☀️';
   window.toggleTheme=function(){
     var cur=html.getAttribute('data-theme');
     var next=cur==='dark'?'light':'dark';
